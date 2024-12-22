@@ -1,5 +1,9 @@
-socketio
-dash 
-dash-socketio 
-plotly
-websockets
+dash==2.18.2
+dash_socketio==1.0.1
+dash-extensions==1.0.19
+plotly==5.24.1
+websocket-client==1.8.0
+websockets==14.1
+socketio==0.2.1
+python-socketio==5.7.2
+numpy
