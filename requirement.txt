@@ -1,0 +1,5 @@
+socketio
+dash 
+dash-socketio 
+plotly
+websockets
