@@ -10,6 +10,7 @@ import time
 import numpy as np
 from datetime import datetime
 from src.Strategies.moving_average import MovingAverageStrategy
+import os
 
 
 class CryptoPriceDashboard:
@@ -406,4 +407,6 @@ class CryptoPriceDashboard:
 
     def run(self):
         self.start_websocket()
-        self.app.run_server(debug=True)
+        # Use PORT environment variable or default to 8050
+        port = int(os.environ.get("PORT", 8050))
+        self.app.run_server(host="0.0.0.0", port=port, debug=False)
