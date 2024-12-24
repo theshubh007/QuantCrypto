@@ -9,12 +9,12 @@ async def main():
     data_feed = DataFeed(product_ids)
     
     dashboard = CryptoPriceDashboard("BTC-USD")
-    # Define the host and port
-    host = "localhost"
-    port = 8050
+    # # Define the host and port
+    # host = "localhost"
+    # port = 8050
 
-    # Print the dashboard address
-    print(f"Dashboard will be available at: http://{host}:{port}")
+    # # Print the dashboard address
+    # print(f"Dashboard will be available at: http://{host}:{port}")
 
     await asyncio.gather(data_feed.start(dashboard.app.server), dashboard.run())
 

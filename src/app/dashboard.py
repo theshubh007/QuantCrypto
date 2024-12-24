@@ -406,4 +406,4 @@ class CryptoPriceDashboard:
 
     def run(self):
         self.start_websocket()
-        self.app.run_server(debug=True, port=8050)
+        self.app.run_server(debug=True)
