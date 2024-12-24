@@ -1,7 +1,6 @@
-import asyncio
 import websockets
 import json
-from socketio import ASGIApp, AsyncServer
+from socketio import AsyncServer
 
 
 class DataFeed:
@@ -24,6 +23,7 @@ class DataFeed:
                 response = await websocket.recv()
                 await self._update_prices(response)
 
+
     async def _update_prices(self, response):
         data = json.loads(response)
         if data.get("type") == "ticker":
@@ -33,10 +33,7 @@ class DataFeed:
                 self.price_data[product_id].append(price)
                 if len(self.price_data[product_id]) > self.limit:
                     self.price_data[product_id].pop(0)
-                await self.sio.emit(
-                    "price_update", {"product": product_id, "price": price}
-                )
+                await self.sio.emit("price_update", {"product": product_id, "price": price})
 
     def get_prices(self, product_id):
         return self.price_data.get(product_id, [])
-

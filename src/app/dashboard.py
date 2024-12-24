@@ -391,7 +391,7 @@ class CryptoPriceDashboard:
             ws.send(subscribe_message)
 
         self.running = True
-        websocket.enableTrace(True)
+        # websocket.enableTrace(True)
         ws = websocket.WebSocketApp(
             "wss://ws-feed.exchange.coinbase.com",
             on_open=on_open,
