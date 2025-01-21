@@ -1,5 +1,6 @@
 from src.Data_feed.websocket_feed import DataFeed
 from src.app.dashboard import CryptoPriceDashboard
+from src.app.Adv_Dashboard import CryptoPriceDashboard2
 from src.Strategies.moving_average import MovingAverageStrategy
 import asyncio
 import os
@@ -8,7 +9,7 @@ import os
 async def main():
     product_ids = ["BTC-USD"]
     data_feed = DataFeed(product_ids)
-    dashboard = CryptoPriceDashboard("BTC-USD")
+    dashboard = CryptoPriceDashboard2("BTC-USD")
 
     # Use PORT environment variable or default to 8050
     port = int(os.environ.get("PORT", 8050))

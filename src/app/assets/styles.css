@@ -1,0 +1,428 @@
+/* assets/styles.css */
+:root {
+  --bg-primary: #0a1120; /* Darker background */
+  --bg-secondary: #111827; /* Slightly lighter background */
+  --bg-card: #1e293b; /* Card background */
+  --text-primary: #f1f5f9; /* Primary text color */
+  --text-secondary: #94a3b8; /* Secondary text color */
+  --accent-blue: #3b82f6; /* Accent color for highlights */
+  --accent-green: #10b981; /* Success/positive values */
+  --accent-red: #ef4444; /* Error/negative values */
+  --border-color: #2d3748; /* Border color */
+  --hover-bg: #2d3748; /* Hover state background */
+}
+
+/* Base styles */
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  margin: 0;
+  font-family: "Inter", -apple-system, system-ui, sans-serif;
+  min-height: 100vh;
+}
+
+/* Dashboard Container */
+.dashboard-container {
+  padding: 1.5rem;
+  background-color: var(--bg-primary);
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+/* Header */
+h1 {
+  color: var(--text-primary);
+  font-size: 1.875rem;
+  font-weight: 700;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+/* Metrics Grid */
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+/* Metric Cards */
+.metric-card {
+  background-color: var(--bg-card);
+  border-radius: 1rem;
+  padding: 1.25rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--border-color);
+  transition: all 0.2s ease;
+}
+
+.metric-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+  background-color: var(--hover-bg);
+}
+
+.metric-label {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.5rem;
+}
+
+.metric-value {
+  color: var(--text-primary);
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin: 0.25rem 0;
+}
+
+/* Value Colors */
+.value-positive {
+  color: var(--accent-green);
+}
+
+.value-negative {
+  color: var(--accent-red);
+}
+
+/* Chart Container */
+.chart-container {
+  background-color: var(--bg-card);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  margin: 1.5rem 0;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+}
+
+/* Moving Average Section */
+.ma-info-container {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+
+.ma-card {
+  background-color: var(--bg-card);
+  border-radius: 1rem;
+  padding: 1.25rem;
+  border: 1px solid var(--border-color);
+  transition: all 0.2s ease;
+}
+
+.ma-card:hover {
+  background-color: var(--hover-bg);
+}
+
+.ma-title {
+  color: var(--text-primary);
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.ma-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.ma-list li {
+  color: var(--text-secondary);
+  padding: 0.5rem 0;
+  padding-left: 1.5rem;
+  position: relative;
+}
+
+.ma-list li::before {
+  content: "•";
+  position: absolute;
+  left: 0;
+  color: var(--accent-blue);
+}
+
+/* Trade History */
+.trade-history-container {
+  margin-top: 1rem;
+  background-color: var(--bg-card);
+  border-radius: 1rem;
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+}
+
+.trade-history-container table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.trade-history-container th {
+  background-color: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-weight: 600;
+  text-align: left;
+  padding: 1rem;
+  font-size: 0.875rem;
+}
+
+.trade-history-container td {
+  padding: 1rem;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-color);
+  font-size: 0.875rem;
+}
+
+/* Add hover effect on rows */
+.trade-history-container tr:hover td {
+  background-color: var(--bg-secondary);
+}
+
+/* Responsive adjustments */
+@media (max-width: 1024px) {
+  .trade-history-container {
+    overflow-x: auto;
+  }
+
+  .trade-history-container table {
+    min-width: 800px; /* Ensure all columns are visible on scroll */
+  }
+}
+/* Signal Container */
+.signal-container {
+  background-color: var(--bg-secondary);
+  padding: 1rem;
+  border-radius: 0.75rem;
+  margin-top: 0.5rem;
+  border: 1px solid var(--border-color);
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .metrics-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .ma-info-container {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-container {
+    padding: 1rem;
+  }
+
+  .metrics-grid {
+    gap: 0.75rem;
+  }
+
+  h1 {
+    font-size: 1.5rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .metrics-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .metric-value {
+    font-size: 1.5rem;
+  }
+}
+
+/* Add to your existing styles.css */
+.header-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.header-title {
+  color: var(--text-primary);
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0;
+  flex: 1;
+}
+
+.developer-info {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  padding-left: 1rem;
+}
+
+.developer-link {
+  color: var(--accent-blue);
+  text-decoration: none;
+  transition: color 0.2s ease;
+  margin-left: 0.25rem;
+}
+
+.developer-link:hover {
+  color: var(--text-primary);
+  text-decoration: underline;
+}
+
+@media (max-width: 768px) {
+  .header-container {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .developer-info {
+    padding-left: 0;
+  }
+}
+
+/* assets/styles.css */
+.strategy-grid {
+  display: grid;
+  grid-template-columns: 1.5fr 1.5fr 2fr; /* Increased width for strategy card */
+  gap: 1rem;
+  margin-bottom: 2rem;
+  width: 100%;
+}
+
+.ma-card {
+  background-color: var(--bg-card);
+  border-radius: 1rem;
+  padding: 1.25rem;
+  border: 1px solid var(--border-color);
+  max-height: 200px; /* Limit height */
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.strategy-card {
+  background-color: var(--bg-card);
+  border-radius: 1rem;
+  padding: 1.25rem;
+  border: 1px solid var(--border-color);
+  max-height: 200px; /* Match MA card height */
+  overflow-y: auto; /* Enable scrolling if content overflows */
+}
+
+.ma-title {
+  color: var(--text-primary);
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.ma-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  flex: 1;
+}
+
+.ma-list li {
+  color: var(--text-secondary);
+  padding: 0.5rem 0;
+  padding-left: 1.25rem;
+  position: relative;
+  font-size: 0.9rem;
+}
+
+/* Add to your existing styles.css */
+.dashboard-layout {
+  display: grid;
+  grid-template-columns: minmax(300px, 2fr) 3fr; /* Left section : Right section */
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+.ma-indicators {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+.ma-card {
+  background-color: var(--bg-card);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  border: 1px solid var(--border-color);
+  transition: transform 0.2s ease;
+}
+
+.ma-card:hover {
+  transform: translateY(-2px);
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr) minmax(200px, 2fr); /* First 3 equal columns, last column bigger */
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  width: 100%;
+}
+
+.metric-card {
+  background-color: var(--bg-card);
+  border-radius: 1rem;
+  padding: 1.25rem;
+  border: 1px solid var(--border-color);
+}
+
+.strategy-card {
+  background-color: var(--bg-card);
+  border-radius: 1rem;
+  padding: 1.25rem;
+  border: 1px solid var(--border-color);
+}
+
+.ma-indicators {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1200px) {
+  .metrics-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .metrics-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ma-indicators {
+    grid-template-columns: 1fr;
+  }
+}

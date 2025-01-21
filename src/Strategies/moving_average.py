@@ -1,46 +1,10 @@
-# class MovingAverageStrategy:
-#     def __init__(
-#         self, short_window=10, long_window=50, trading_fee=0.001, tax_rate=0.02
-#     ):
-#         self.short_window = short_window
-#         self.long_window = long_window
-#         self.trading_fee = trading_fee
-#         self.tax_rate = tax_rate
-
-#     def calculate_signals(self, prices):
-#         """Calculate buy/sell signals based on moving average crossover."""
-#         if len(prices) < self.long_window:
-#             return None
-
-#         short_ma = sum(prices[-self.short_window :]) / self.short_window
-#         long_ma = sum(prices[-self.long_window :]) / self.long_window
-
-#         if short_ma > long_ma:
-#             return "buy"
-#         elif short_ma < long_ma:
-#             return "sell"
-#         return None
-
-#     def calculate_profit_loss(self, initial_balance, trades):
-#         """Calculate profit/loss after applying fees and taxes."""
-#         balance = initial_balance
-#         for trade in trades:
-#             action, price = trade["action"], trade["price"]
-#             if action == "buy":
-#                 balance -= price + price * self.trading_fee
-#             elif action == "sell":
-#                 balance += price - price * (self.trading_fee + self.tax_rate)
-#         return balance - initial_balance
-
-
 class MovingAverageStrategy:
     def __init__(
-        self, short_window=10, long_window=50, trading_fee=0.001, tax_rate=0.02
+        self, short_window=10, long_window=50, trading_fee=0.0001  # Reduced to 0.01%
     ):
         self.short_window = short_window
         self.long_window = long_window
-        self.trading_fee = trading_fee  # 0.1% per trade
-        self.tax_rate = tax_rate  # 2% on profits
+        self.trading_fee = trading_fee  # 0.01% per trade
 
         # Trade tracking
         self.trades = []
@@ -49,7 +13,7 @@ class MovingAverageStrategy:
         self.current_balance = 0
         self.initial_balance = 0
         self.total_fees_paid = 0
-        self.total_taxes_paid = 0
+        self.reset_threshold = 900  # Balance reset threshold
 
     def calculate_signals(self, prices):
         """Calculate buy/sell signals based on moving average crossover."""
@@ -109,15 +73,10 @@ class MovingAverageStrategy:
             gross_proceeds = coins_to_sell * current_price
             fee = gross_proceeds * self.trading_fee
 
-            # Calculate profit/loss and taxes
-            profit = gross_proceeds - last_buy["investment"]
-            tax = max(0, profit * self.tax_rate)  # Tax only on profits
-
-            net_proceeds = gross_proceeds - fee - tax
+            net_proceeds = gross_proceeds - fee
 
             self.current_balance = net_proceeds
             self.total_fees_paid += fee
-            self.total_taxes_paid += tax
             self.position = None
 
             trade = {
@@ -126,7 +85,6 @@ class MovingAverageStrategy:
                 "coins": coins_to_sell,
                 "timestamp": timestamp,
                 "fee": fee,
-                "tax": tax,
                 "gross_proceeds": gross_proceeds,
                 "net_proceeds": net_proceeds,
                 "profit_loss": net_proceeds - last_buy["investment"],
@@ -134,19 +92,27 @@ class MovingAverageStrategy:
             self.trades.append(trade)
 
     def get_performance_metrics(self):
-        """
-        Calculate and return comprehensive performance metrics.
-        """
+        """Calculate and return comprehensive performance metrics."""
         if not self.trades:
             return {
                 "total_trades": 0,
                 "current_balance": self.initial_balance,
                 "total_profit_loss": 0,
                 "total_fees": 0,
-                "total_taxes": 0,
                 "return_percentage": 0,
                 "position": "No position",
             }
+
+        # Check if balance is below threshold and reset if needed
+        if self.current_balance < self.reset_threshold:
+            print(
+                f"Balance dropped below {self.reset_threshold}, resetting to {self.initial_balance}"
+            )
+            self.current_balance = self.initial_balance
+            self.position = None
+            self.entry_price = None
+            self.trades = []
+            self.total_fees_paid = 0
 
         total_profit_loss = self.current_balance - self.initial_balance
 
@@ -155,7 +121,6 @@ class MovingAverageStrategy:
             "current_balance": round(self.current_balance, 2),
             "total_profit_loss": round(total_profit_loss, 2),
             "total_fees": round(self.total_fees_paid, 2),
-            "total_taxes": round(self.total_taxes_paid, 2),
             "return_percentage": round(
                 (total_profit_loss / self.initial_balance) * 100, 2
             ),
@@ -183,9 +148,7 @@ class MovingAverageStrategy:
         return metrics
 
     def get_trade_history(self):
-        """
-        Return formatted trade history with key metrics for each trade.
-        """
+        """Return formatted trade history with key metrics for each trade."""
         formatted_trades = []
         for trade in self.trades:
             formatted_trade = {
@@ -200,7 +163,6 @@ class MovingAverageStrategy:
                 formatted_trade.update(
                     {
                         "profit_loss": round(trade["profit_loss"], 2),
-                        "tax": round(trade["tax"], 2),
                         "net_proceeds": round(trade["net_proceeds"], 2),
                     }
                 )
