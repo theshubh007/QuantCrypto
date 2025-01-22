@@ -8,3 +8,4 @@ socketio==0.2.1
 python-socketio==5.7.2
 numpy
 pandas
+psutil
