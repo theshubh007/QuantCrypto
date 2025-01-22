@@ -3,13 +3,13 @@ from dash import html, dcc
 from dash.dependencies import Input, Output
 import plotly.graph_objs as go
 from collections import deque
-import websocket
 import json
 import threading
 import time
 import numpy as np
 from datetime import datetime
 from src.Strategies.moving_average import MovingAverageStrategy
+from src.Data_feed.DataStream import EnhancedCryptoStream
 import os
 
 
@@ -17,9 +17,7 @@ class CryptoPriceDashboard2:
     def __init__(
         self, symbol="BTC-USD", short_window=10, long_window=50, investment_amount=1000
     ):
-        # Initialize price and time tracking
-        self.price_times = deque(maxlen=200)
-        self.prices = deque(maxlen=200)
+        # Initialize price and time tracking (these will now be managed by EnhancedCryptoStream)
         self.investment_amount = investment_amount
 
         # Initialize strategy
@@ -28,16 +26,23 @@ class CryptoPriceDashboard2:
         self.long_ma = deque(maxlen=200)
         self.signals = deque(maxlen=200)
 
+        # Initialize the enhanced crypto stream
+        self.crypto_stream = EnhancedCryptoStream(symbol=symbol)
+
+        # Store symbol for reference
+        self.symbol = symbol
+
         # Dash app setup with proper asset serving
         self.app = dash.Dash(
             __name__,
-            assets_folder="assets",  # Specify assets folder explicitly
+            assets_folder="assets",
             external_stylesheets=[
                 "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
             ],
             suppress_callback_exceptions=True,
         )
         print(f"Assets folder path: {self.app.config.assets_folder}")
+        # Main layout with proper styling classes
         # Main layout with proper styling classes
         self.app.layout = html.Div(
             [
@@ -67,19 +72,20 @@ class CryptoPriceDashboard2:
                             ],
                             className="header-container",
                         ),
-                        html.Div(
-                            id="account-metrics",
-                            className="metrics-grid animate-fade-in",
-                        ),
                     ],
                     className="dashboard-container",
                 ),
-                # Main Chart
+                # Main Chart - Moved here, right after header
                 html.Div(
                     dcc.Graph(
                         id="live-graph", animate=True, className="chart-container"
                     ),
                     className="bg-dark rounded-lg shadow-lg p-4 mb-4",
+                ),
+                # Account Metrics Section
+                html.Div(
+                    id="account-metrics",
+                    className="metrics-grid animate-fade-in",
                 ),
                 # Trading Signals and Performance
                 html.Div(
@@ -114,7 +120,7 @@ class CryptoPriceDashboard2:
                 ),
                 dcc.Interval(id="graph-update", interval=1000, n_intervals=0),
             ],
-            className="min-h-screen bg-dark",  # Dark background for entire page
+            className="min-h-screen bg-dark",
         )
         # Callbacks
         self.app.callback(
@@ -348,158 +354,212 @@ class CryptoPriceDashboard2:
         )
 
     def calculate_moving_averages(self):
-        prices_list = list(self.prices)
+        """Calculate moving averages using data from EnhancedCryptoStream"""
+        # Get prices from the crypto stream
+        prices_list = list(self.crypto_stream.prices)
+
         if len(prices_list) >= self.strategy.long_window:
-            # Calculate short MA
-            short_ma = np.convolve(
-                prices_list,
-                np.ones(self.strategy.short_window) / self.strategy.short_window,
-                mode="valid",
-            )
-            self.short_ma.append(short_ma[-1])
+            try:
+                # Calculate short MA with numpy for efficiency
+                short_window_vals = prices_list[-self.strategy.short_window :]
+                short_ma_value = np.mean(short_window_vals)
+                self.short_ma.append(short_ma_value)
 
-            # Calculate long MA
-            long_ma = np.convolve(
-                prices_list,
-                np.ones(self.strategy.long_window) / self.strategy.long_window,
-                mode="valid",
-            )
-            self.long_ma.append(long_ma[-1])
+                # Calculate long MA with numpy for efficiency
+                long_window_vals = prices_list[-self.strategy.long_window :]
+                long_ma_value = np.mean(long_window_vals)
+                self.long_ma.append(long_ma_value)
 
-            # Get trading signal
-            signal = self.strategy.calculate_signals(prices_list)
-            self.signals.append(signal)
-            return signal
+                # Get trading signal
+                signal = self.strategy.calculate_signals(prices_list)
+                self.signals.append(signal)
+                return signal
+
+            except Exception as e:
+                print(f"Error calculating moving averages: {str(e)}")
+                return None
         return None
 
     def update_graph_and_signal(self, n):
-        current_price = self.prices[-1] if self.prices else 0
-        current_time = (
-            self.price_times[-1] if self.price_times else int(time.time() * 1000)
-        )
-
-        # Calculate MAs and get signal
-        current_signal = self.calculate_moving_averages()
-
-        # Execute trade if we have a signal
-        if current_signal:
-            self.strategy.execute_trade(
-                current_signal, current_price, current_time, self.investment_amount
+        """Update the dashboard with latest data from EnhancedCryptoStream"""
+        try:
+            # Get current price and time from crypto stream
+            current_price = (
+                self.crypto_stream.prices[-1]
+                if len(self.crypto_stream.prices) > 0
+                else 0
+            )
+            current_time = (
+                self.crypto_stream.price_times[-1]
+                if len(self.crypto_stream.price_times) > 0
+                else int(time.time() * 1000)
             )
 
-        # Get performance metrics and trade history
-        metrics = self.strategy.get_performance_metrics()
-        trade_history = self.strategy.get_trade_history()
+            # Calculate MAs and get signal
+            current_signal = self.calculate_moving_averages()
 
-        traces = []
-
-        # Price trace
-        traces.append(
-            go.Scatter(
-                x=list(self.price_times),
-                y=list(self.prices),
-                name="Price",
-                mode="lines+markers",
-                line=dict(color="blue"),
-            )
-        )
-
-        # Add MA traces if we have enough data
-        if len(self.short_ma) > 0:
-            traces.append(
-                go.Scatter(
-                    x=list(self.price_times)[-len(self.short_ma) :],
-                    y=list(self.short_ma),
-                    name=f"{self.strategy.short_window}MA",
-                    mode="lines",
-                    line=dict(color="orange"),
+            # Execute trade if we have a valid signal
+            if current_signal and current_price > 0:
+                self.strategy.execute_trade(
+                    current_signal, current_price, current_time, self.investment_amount
                 )
-            )
 
-        if len(self.long_ma) > 0:
-            traces.append(
+            # Get performance metrics and trade history
+            metrics = self.strategy.get_performance_metrics()
+            trade_history = self.strategy.get_trade_history()
+
+            # NEW CODE:
+            formatted_times = [
+                datetime.fromtimestamp(t / 1000) for t in self.crypto_stream.price_times
+            ]
+            traces = [
                 go.Scatter(
-                    x=list(self.price_times)[-len(self.long_ma) :],
-                    y=list(self.long_ma),
-                    name=f"{self.strategy.long_window}MA",
-                    mode="lines",
-                    line=dict(color="red"),
+                    x=formatted_times,  # Using formatted datetime objects
+                    y=list(self.crypto_stream.prices),
+                    name="Price",
+                    mode="lines+markers",
+                    line=dict(color="#3b82f6"),
+                    marker=dict(size=4),
                 )
+            ]
+
+            # For Short MA
+            if len(self.short_ma) > 0:
+                # Calculate correct x-axis values for MAs
+                ma_times = list(self.crypto_stream.price_times)[-len(self.short_ma) :]
+                formatted_ma_times = [
+                    datetime.fromtimestamp(t / 1000) for t in ma_times
+                ]
+                traces.append(
+                    go.Scatter(
+                        x=formatted_ma_times,  # Using formatted datetime objects
+                        y=list(self.short_ma),
+                        name=f"{self.strategy.short_window}MA",
+                        mode="lines",
+                        line=dict(color="#f59e0b"),
+                    )
+                )
+
+            # For Long MA
+            if len(self.long_ma) > 0:
+                ma_times = list(self.crypto_stream.price_times)[-len(self.long_ma) :]
+                formatted_ma_times = [
+                    datetime.fromtimestamp(t / 1000) for t in ma_times
+                ]
+                traces.append(
+                    go.Scatter(
+                        x=formatted_ma_times,  # Using formatted datetime objects
+                        y=list(self.long_ma),
+                        name=f"{self.strategy.long_window}MA",
+                        mode="lines",
+                        line=dict(color="#ef4444"),
+                    )
+                )
+
+            layout = go.Layout(
+                title=f"{self.symbol} Real-Time Price with Moving Averages",
+                paper_bgcolor="#1c2537",
+                plot_bgcolor="#1c2537",
+                font=dict(color="#e2e8f0"),
+                xaxis=dict(
+                    range=[
+                        min(formatted_times) if formatted_times else 0,
+                        max(formatted_times) if formatted_times else 0,
+                    ],
+                    gridcolor="#2d3748",
+                    zerolinecolor="#2d3748",
+                    type="date",  # Specify x-axis type as date
+                    tickformat="%H:%M:%S",  # Format as Hours:Minutes:Seconds
+                    tickmode="auto",  # Automatic tick mode
+                    nticks=10,  # Number of ticks to display
+                    tickfont=dict(size=10),  # Tick font size
+                ),
+                yaxis=dict(
+                    range=self._calculate_y_axis_range(),
+                    gridcolor="#2d3748",
+                    zerolinecolor="#2d3748",
+                ),
             )
 
-        # Layout
-        layout = go.Layout(
-            title=f"{self.symbol} Real-Time Price with Moving Averages",
-            paper_bgcolor="#1c2537",  # matches --bg-card
-            plot_bgcolor="#1c2537",  # matches --bg-card
-            font=dict(color="#e2e8f0"),  # matches --text-primary
-            xaxis=dict(
-                range=[
-                    min(self.price_times) if self.price_times else 0,
-                    max(self.price_times) if self.price_times else 0,
-                ],
-                gridcolor="#2d3748",  # matches --border-color
-                zerolinecolor="#2d3748",
+            # Generate signal components
+            signal_text = self._generate_signal_text(current_signal, metrics)
+            metric_cards = self.create_metrics_cards(metrics)
+            trade_table = self.create_trade_history_table(trade_history)
+
+            return (
+                {"data": traces, "layout": layout},
+                signal_text,
+                metric_cards,
+                trade_table,
+            )
+
+        except Exception as e:
+            print(f"Error updating dashboard: {str(e)}")
+            # Return empty/default values in case of error
+            return self._generate_empty_dashboard()
+
+    def _calculate_y_axis_range(self):
+        """Calculate dynamic y-axis range for the graph"""
+        try:
+            min_price = (
+                min(self.crypto_stream.prices) if self.crypto_stream.prices else 0
+            )
+            max_price = (
+                max(self.crypto_stream.prices) if self.crypto_stream.prices else 0
+            )
+
+            # Include MA values in range calculation
+            if self.short_ma:
+                min_price = min(min_price, min(self.short_ma))
+                max_price = max(max_price, max(self.short_ma))
+            if self.long_ma:
+                min_price = min(min_price, min(self.long_ma))
+                max_price = max(max_price, max(self.long_ma))
+
+            # Add padding
+            padding = (max_price - min_price) * 0.05
+            return [min_price - padding, max_price + padding]
+        except Exception as e:
+            print(f"Error calculating y-axis range: {str(e)}")
+            return [0, 100]  # Default range
+
+    def _generate_empty_dashboard(self):
+        """Generate empty dashboard components for error cases"""
+        empty_figure = {
+            "data": [],
+            "layout": go.Layout(
+                title="Waiting for data...",
+                paper_bgcolor="#1c2537",
+                plot_bgcolor="#1c2537",
+                font=dict(color="#e2e8f0"),
             ),
-            yaxis=dict(
-                range=[
-                    min(
-                        min(self.prices) if self.prices else 0,
-                        min(self.short_ma) if self.short_ma else float("inf"),
-                        min(self.long_ma) if self.long_ma else float("inf"),
-                    ),
-                    max(
-                        max(self.prices) if self.prices else 0,
-                        max(self.short_ma) if self.short_ma else 0,
-                        max(self.long_ma) if self.long_ma else 0,
-                    ),
-                ],
-                gridcolor="#2d3748",  # matches --border-color
-                zerolinecolor="#2d3748",
-            ),
+        }
+
+        empty_signal = html.Div("No signal available", className="signal-container")
+
+        empty_metrics = self.create_metrics_cards(
+            {
+                "current_balance": 0,
+                "total_profit_loss": 0,
+                "return_percentage": 0,
+                "win_rate": 0,
+                "position": "None",
+            }
         )
 
-        traces = [
-            go.Scatter(
-                x=list(self.price_times),
-                y=list(self.prices),
-                name="Price",
-                mode="lines+markers",
-                line=dict(color="#3b82f6"),  # matches --accent-blue
-                marker=dict(size=4),
-            )
-        ]
+        empty_history = self.create_trade_history_table([])
 
-        if len(self.short_ma) > 0:
-            traces.append(
-                go.Scatter(
-                    x=list(self.price_times)[-len(self.short_ma) :],
-                    y=list(self.short_ma),
-                    name=f"{self.strategy.short_window}MA",
-                    mode="lines",
-                    line=dict(color="#f59e0b"),  # orange for short MA
-                )
-            )
+        return empty_figure, empty_signal, empty_metrics, empty_history
 
-        if len(self.long_ma) > 0:
-            traces.append(
-                go.Scatter(
-                    x=list(self.price_times)[-len(self.long_ma) :],
-                    y=list(self.long_ma),
-                    name=f"{self.strategy.long_window}MA",
-                    mode="lines",
-                    line=dict(color="#ef4444"),  # matches --accent-red
-                )
-            )
-
-        # Generate signal text with current position
+    def _generate_signal_text(self, current_signal, metrics):
+        """Generate signal text component with current position"""
         signal_style = {
             "buy": {"color": "#10b981"},  # Green
             "sell": {"color": "#ef4444"},  # Red
             None: {"color": "#94a3b8"},  # Gray
         }
 
-        signal_text = html.Div(
+        return html.Div(
             [
                 html.P(
                     f"Current Signal: {current_signal if current_signal else 'Waiting for data...'}",
@@ -514,59 +574,101 @@ class CryptoPriceDashboard2:
             className="signal-container",
         )
 
-        # Create metric cards and trade history table
-        metric_cards = self.create_metrics_cards(metrics)
-        trade_table = self.create_trade_history_table(trade_history)
+    def stop_stream(self):
+        """Gracefully shutdown the crypto stream and cleanup resources"""
+        try:
+            if hasattr(self, "crypto_stream"):
+                print("Stopping crypto stream...")
+                self.crypto_stream.stop()
 
-        return (
-            {"data": traces, "layout": layout},
-            signal_text,
-            metric_cards,
-            trade_table,
-        )
+                # Wait for websocket thread to finish
+                if hasattr(self, "websocket_thread") and self.websocket_thread:
+                    self.websocket_thread.join(timeout=5)
+
+                # Save final state
+                self._save_final_state()
+
+            print("Stream stopped successfully")
+
+        except Exception as e:
+            print(f"Error stopping stream: {str(e)}")
+
+    def _save_final_state(self):
+        """Save the final state before shutdown"""
+        if not self.crypto_stream.prices:
+            return
+
+        try:
+            final_state = {
+                "timestamp": time.time(),
+                "last_price": self.crypto_stream.prices[-1],
+                "metrics": self.strategy.get_performance_metrics(),
+                "trade_history": self.strategy.get_trade_history(),
+            }
+
+            with open("dashboard_state.json", "w") as f:
+                json.dump(final_state, f)
+
+        except Exception as e:
+            print(f"Error saving final state: {str(e)}")
 
     def start_websocket(self):
-        def on_message(ws, message):
-            data = json.loads(message)
-            if data.get("type") == "ticker" and data.get("product_id") == self.symbol:
-                current_time = int(time.time() * 1000)
-                price = float(data.get("price", 0))
-                self.price_times.append(current_time)
-                self.prices.append(price)
-
-        def on_error(ws, error):
-            print(f"WebSocket Error: {error}")
-
-        def on_close(ws, close_status_code, close_msg):
-            print("WebSocket Connection Closed")
-
-        def on_open(ws):
-            print("WebSocket Connection Opened")
-            subscribe_message = json.dumps(
-                {
-                    "type": "subscribe",
-                    "product_ids": [self.symbol],
-                    "channels": ["ticker"],
-                }
+        """Start the websocket connection using EnhancedCryptoStream"""
+        try:
+            # Create a thread for the crypto stream
+            self.websocket_thread = threading.Thread(
+                target=self.crypto_stream.start_websocket
             )
-            ws.send(subscribe_message)
+            self.websocket_thread.daemon = True
+            self.websocket_thread.start()
 
-        self.running = True
-        # websocket.enableTrace(True)
-        ws = websocket.WebSocketApp(
-            "wss://ws-feed.exchange.coinbase.com",
-            on_open=on_open,
-            on_message=on_message,
-            on_error=on_error,
-            on_close=on_close,
-        )
+            # Wait for initial connection
+            timeout = 10  # seconds
+            start_time = time.time()
+            while not self.crypto_stream.connected.is_set():
+                if time.time() - start_time > timeout:
+                    raise TimeoutError("Failed to establish WebSocket connection")
+                time.sleep(0.1)
 
-        self.websocket_thread = threading.Thread(target=ws.run_forever)
-        self.websocket_thread.daemon = True
-        self.websocket_thread.start()
+            print("WebSocket connection established successfully")
+
+        except Exception as e:
+            print(f"Error starting websocket: {str(e)}")
+            raise
 
     def run(self):
-        self.start_websocket()
-        # Use PORT environment variable or default to 8050
-        port = int(os.environ.get("PORT", 8050))
-        self.app.run_server(host="0.0.0.0", port=port, debug=False)
+        """Run the dashboard application with enhanced stream management"""
+        try:
+            # Start the websocket connection
+            self.start_websocket()
+
+            # Register shutdown handler
+            import atexit
+
+            atexit.register(self.stop_stream)
+
+            # Monitor stream health in a separate thread
+            def monitor_stream():
+                while True:
+                    if not self.crypto_stream.connected.is_set():
+                        print("Stream connection lost, attempting to reconnect...")
+                        self.start_websocket()
+                    time.sleep(30)  # Check every 30 seconds
+
+            monitor_thread = threading.Thread(target=monitor_stream)
+            monitor_thread.daemon = True
+            monitor_thread.start()
+
+            # Run the Dash server
+            port = int(os.environ.get("PORT", 8050))
+            self.app.run_server(
+                host="0.0.0.0",
+                port=port,
+                debug=False,
+                use_reloader=False,  # Prevent duplicate streams
+            )
+
+        except Exception as e:
+            print(f"Error running dashboard: {str(e)}")
+            self.stop_stream()
+            raise
